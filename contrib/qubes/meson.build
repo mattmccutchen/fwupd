@@ -48,6 +48,6 @@ install_data(
 
 install_symlink(
   'qubes-fwupdmgr',
-  pointing_to: '/usr/share/qubes-fwupd/src/qubes_fwupdmgr.py',
-  install_dir: '/usr/sbin',
+  pointing_to: '../share/qubes-fwupd/src/qubes_fwupdmgr.py',
+  install_dir: '/usr/bin',
 )
