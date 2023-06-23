@@ -7,9 +7,11 @@
 # SPDX-License-Identifier: LGPL-2.1+
 #
 
+import errno
 import json
 import os
 import re
+import pty
 import shutil
 import subprocess
 import tempfile
@@ -182,10 +184,28 @@ class QubesFwupdmgr(FwupdHeads, FwupdUpdate, FwupdReceiveUpdates):
     def _get_dom0_updates(self):
         """Gathers information about available updates."""
         cmd_get_dom0_updates = [FWUPDMGR, "--json", "get-updates"]
-        p = subprocess.Popen(cmd_get_dom0_updates, stdout=subprocess.PIPE)
-        self.dom0_updates_info = p.communicate()[0].decode()
-        if p.returncode != 0 and p.returncode != 2:
-            raise Exception("fwupd-qubes: Getting available updates failed")
+        # connect stdout to a pty, otherwise get-updates works in
+        # non-interactive mode and doesn't list all the updates
+        # (based on FWUUPD_FEATURE_* flags)
+        mstdout, sstdout = pty.openpty()
+        p = subprocess.Popen(cmd_get_dom0_updates, stdout=sstdout)
+        os.close(sstdout)
+        data = b""
+        while True:
+            try:
+                new_data = os.read(mstdout, 4096)
+            except OSError as e:
+                if e.errno == errno.EIO:
+                    # process exited
+                    break
+            if not new_data:
+                break
+            data += new_data
+        self.dom0_updates_info = data.decode()
+        p.wait()
+        if p.returncode != 0:
+            raise Exception("fwupd-qubes: Getting devices info failed")
+
 
     def _parse_dom0_updates_info(self, updates_info):
         """Creates dictionary and list with information about updates.
