@@ -335,47 +335,6 @@ class QubesFwupdmgr(FwupdHeads, FwupdUpdate, FwupdReceiveUpdates):
         if p.returncode != 0:
             raise Exception("fwupd-qubes: Firmware update failed")
 
-    def _read_dmi(self):
-        """Reads BIOS information from DMI."""
-        cmd_dmidecode_version = ["dmidecode", "-s", "bios-version"]
-        p = subprocess.Popen(cmd_dmidecode_version, stdout=subprocess.PIPE)
-        p.wait()
-        self.dmi_version = p.communicate()[0].decode()
-        cmd_dmidecode = ["dmidecode", "-t", "bios"]
-        p = subprocess.Popen(cmd_dmidecode, stdout=subprocess.PIPE)
-        p.wait()
-        if p.returncode != 0:
-            raise Exception("dmidecode: Reading DMI failed")
-        return p.communicate()[0].decode()
-
-    def _verify_dmi(self, arch_path, version, downgrade=False):
-        """Verifies DMI tables for BIOS updates.
-
-        Keywords arguments:
-        arch_path -- absolute path of the update archive
-        version -- version of the update
-        downgrade -- downgrade flag
-        """
-        dmi_info = self._read_dmi()
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cmd_extract = ["gcab", "-x", f"--directory={tmpdir}", "--", arch_path]
-            p = subprocess.Popen(cmd_extract, stdout=subprocess.PIPE)
-            p.communicate()
-            if p.returncode != 0:
-                raise Exception(f"gcab: Error while extracting {arch_path}.")
-            path_metainfo = os.path.join(tmpdir, "firmware.metainfo.xml")
-            tree = ET.parse(path_metainfo)
-        root = tree.getroot()
-        vendor = root.find("developer_name").text
-        if vendor is None:
-            raise ValueError("No vendor information in firmware metainfo.")
-        if vendor not in dmi_info:
-            raise ValueError("Wrong firmware provider.")
-        if not downgrade and pversion.parse(version) <= pversion.parse(
-            self.dmi_version
-        ):
-            raise ValueError(f"{version} < {self.dmi_version} Downgrade not allowed")
-
     def _get_dom0_devices(self):
         """Gathers information about devices connected in dom0."""
         cmd_get_dom0_devices = [FWUPDMGR, "--json", "get-devices"]
@@ -401,7 +360,6 @@ class QubesFwupdmgr(FwupdHeads, FwupdUpdate, FwupdReceiveUpdates):
         self._download_firmware_updates(self.url, self.sha, whonix=whonix)
         if self.name == "System Firmware":
             Path(BIOS_UPDATE_FLAG).touch(mode=0o644, exist_ok=True)
-            self._verify_dmi(self.arch_path, self.version)
         self._install_dom0_firmware_update(self.arch_path)
 
     def _parse_downgrades(self, device_list):
@@ -470,11 +428,6 @@ class QubesFwupdmgr(FwupdHeads, FwupdUpdate, FwupdReceiveUpdates):
         self._download_firmware_updates(downgrade_url, downgrade_sha, whonix=whonix)
         if downgrade["Name"] == "System Firmware":
             Path(BIOS_UPDATE_FLAG).touch(mode=0o644, exist_ok=True)
-            self._verify_dmi(
-                self.arch_path,
-                downgrade["Version"],
-                downgrade=True,
-            )
         self._install_dom0_firmware_downgrade(self.arch_path)
 
     def _output_crawler(self, updev_dict, level, help_f=False):

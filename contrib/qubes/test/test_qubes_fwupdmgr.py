@@ -278,51 +278,6 @@ class TestQubesFwupdmgr(unittest.TestCase):
             self.assertEqual(help_log.read(), help_output.getvalue().strip() + "\n")
         sys.stdout = self.captured_output
 
-    @patch(
-        "test.test_qubes_fwupdmgr.qfwupd.QubesFwupdmgr._read_dmi",
-        return_value=DMI_DECODE,
-    )
-    def test_verify_dmi(self, output):
-        self.q.dmi_version = "P.1.0"
-        with tempfile.TemporaryDirectory() as tmpdir:
-            arch_name = tmpdir + "/firmware.cab"
-            subprocess.check_call(
-                ["gcab", "-c", arch_name, "firmware.metainfo.xml"], cwd="test/logs"
-            )
-            self.q._verify_dmi(arch_name, "P1.1")
-
-    @patch(
-        "test.test_qubes_fwupdmgr.qfwupd.QubesFwupdmgr._read_dmi",
-        return_value=DMI_DECODE,
-    )
-    def test_verify_dmi_wrong_vendor(self, output):
-        with self.assertRaises(ValueError) as wrong_vendor:
-            self.q.dmi_version = "P.1.0"
-            with tempfile.TemporaryDirectory() as tmpdir:
-                arch_name = tmpdir + "/firmware.cab"
-                subprocess.check_call(
-                    ["gcab", "-c", arch_name, "firmware.metainfo.xml"],
-                    cwd="test/logs/metainfo_name",
-                )
-                self.q._verify_dmi(arch_name, "P1.1")
-        self.assertIn("Wrong firmware provider.", str(wrong_vendor.exception))
-
-    @patch(
-        "test.test_qubes_fwupdmgr.qfwupd.QubesFwupdmgr._read_dmi",
-        return_value=DMI_DECODE,
-    )
-    def test_verify_dmi_version(self, output):
-        self.q.dmi_version = "P1.0"
-        with self.assertRaises(ValueError) as downgrade:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                arch_name = tmpdir + "/firmware.cab"
-                subprocess.check_call(
-                    ["gcab", "-c", arch_name, "firmware.metainfo.xml"],
-                    cwd="test/logs/metainfo_version",
-                )
-                self.q._verify_dmi(arch_name, "P0.1")
-        self.assertIn("P0.1 < P1.0 Downgrade not allowed", str(downgrade.exception))
-
     @unittest.skipUnless(device_connected_dom0(), REQUIRED_DEV)
     def test_downgrade_firmware_dom0(self):
         old_version = None
