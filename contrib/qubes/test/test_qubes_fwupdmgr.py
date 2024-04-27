@@ -12,7 +12,7 @@ import unittest
 import os
 import subprocess
 import sys
-import imp
+import importlib.util
 import io
 import platform
 import tempfile
@@ -27,9 +27,11 @@ QUBES_FWUPDMGR_REPO = "./src/qubes_fwupdmgr.py"
 QUBES_FWUPDMGR_BINDIR = "/usr/sbin/qubes-fwupdmgr"
 
 if os.path.exists(QUBES_FWUPDMGR_REPO):
-    qfwupd = imp.load_source("qubes_fwupdmgr", QUBES_FWUPDMGR_REPO)
+    qfwupd_spec = importlib.util.spec_from_file_location("qubes_fwupdmgr", QUBES_FWUPDMGR_REPO)
 elif os.path.exists(QUBES_FWUPDMGR_BINDIR):
-    qfwupd = imp.load_source("qubes_fwupdmgr", QUBES_FWUPDMGR_BINDIR)
+    qfwupd_spec = importlib.util.spec_from_file_location("qubes_fwupdmgr", QUBES_FWUPDMGR_BINDIR)
+qfwupd = importlib.util.module_from_spec(qfwupd_spec)
+qfwupd_spec.loader.exec_module(qfwupd)
 
 FWUPD_DOM0_DIR = "/var/cache/fwupd/qubes"
 FWUPD_DOM0_UPDATES_DIR = os.path.join(FWUPD_DOM0_DIR, "updates")
