@@ -60,8 +60,11 @@ def check_whonix_updatevm():
     """Checks if the sys-whonix is running"""
     if "qubes" not in platform.release():
         return False
-    q = qfwupd.QubesFwupdmgr()
-    return "sys-whonix" in q.output
+    try:
+        p = subprocess.run(["qvm-check", "--running", "--quiet", "sys-whonix"])
+    except FileNotFoundError:
+        return False
+    return p.returncode == 0
 
 
 class TestQubesFwupdmgr(unittest.TestCase):
