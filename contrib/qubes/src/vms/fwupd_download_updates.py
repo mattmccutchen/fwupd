@@ -85,10 +85,19 @@ class DownloadData(FwupdVmCommon):
             raise Exception("fwupd-qubes: Extracting jcat file failed")
         # rename extracted files to match jcat base name, instead of "ID"
         # inside jcat
+        #
+        # As of 2025-10-11, the jcat file contains two p7b files of the same
+        # name, and `jcat-tool export` arbitrarily keeps one of them. dom0
+        # currently doesn't use these files, but we need to avoid crashing here
+        # by trying to rename the same file twice.
+        paths_already_done = set()
         for line in stdout.decode("ascii").splitlines():
             if not line.startswith("Wrote "):
                 continue
             path = line.split(" ", 1)[1]
+            if path in paths_already_done:
+                continue
+            paths_already_done.add(path)
             base_path, ext = os.path.splitext(path)
             if base_path == self.metadata_file:
                 continue
