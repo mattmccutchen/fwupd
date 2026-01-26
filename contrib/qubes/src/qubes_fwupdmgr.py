@@ -214,7 +214,7 @@ class QubesFwupdmgr(FwupdHeads, FwupdUpdate, FwupdReceiveUpdates):
                 "Releases": [
                     {
                         "Version": update["Version"],
-                        "Url": update["Uri"],
+                        "Url": update["Locations"][0],
                         "Checksum": update["Checksum"][-1],
                         "Description": update["Description"],
                     }
@@ -379,7 +379,7 @@ class QubesFwupdmgr(FwupdHeads, FwupdUpdate, FwupdReceiveUpdates):
                             {
                                 "Version": downgrade["Version"],
                                 "Description": downgrade["Description"],
-                                "Url": downgrade["Uri"],
+                                "Url": downgrade["Locations"][0],
                                 "Checksum": downgrade["Checksum"][-1],
                             }
                             for downgrade in device["Releases"]
