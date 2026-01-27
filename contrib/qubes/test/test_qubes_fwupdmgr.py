@@ -33,6 +33,7 @@ elif os.path.exists(QUBES_FWUPDMGR_BINDIR):
 qfwupd = importlib.util.module_from_spec(qfwupd_spec)
 qfwupd_spec.loader.exec_module(qfwupd)
 
+FWUPD_METADATA_LVFS_DIR = "/var/lib/fwupd/metadata/lvfs"
 FWUPD_DOM0_DIR = "/var/cache/fwupd/qubes"
 FWUPD_DOM0_UPDATES_DIR = os.path.join(FWUPD_DOM0_DIR, "updates")
 FWUPD_DOM0_UNTRUSTED_DIR = os.path.join(FWUPD_DOM0_UPDATES_DIR, "untrusted")
@@ -65,6 +66,11 @@ def check_whonix_updatevm():
     except FileNotFoundError:
         return False
     return p.returncode == 0
+
+
+def clear_lvfs_metadata():
+    for fname in os.listdir(FWUPD_METADATA_LVFS_DIR):
+        os.unlink(os.path.join(FWUPD_METADATA_LVFS_DIR, fname))
 
 
 class TestQubesFwupdmgr(unittest.TestCase):
@@ -122,7 +128,7 @@ class TestQubesFwupdmgr(unittest.TestCase):
 
     @unittest.skipUnless("qubes" in platform.release(), "Requires Qubes OS")
     def test_refresh_metadata_dom0(self):
-        self.q.refresh_metadata(metadata_url=qfwupd.METADATA_URL)
+        self.q.refresh_metadata(remote_name="lvfs")
         self.assertEqual(
             self.captured_output.getvalue().strip(),
             "Successfully refreshed metadata manually",
@@ -130,18 +136,37 @@ class TestQubesFwupdmgr(unittest.TestCase):
         )
 
     @unittest.skipUnless("qubes" in platform.release(), "Requires Qubes OS")
-    @unittest.expectedFailure  # fwupd refuses metadata downgrade
     def test_refresh_metadata_dom0_custom(self):
-        self.q.refresh_metadata(metadata_url=CUSTOM_METADATA)
-        self.assertEqual(
-            self.captured_output.getvalue().strip(),
-            "Successfully refreshed metadata manually",
-            msg="Metadata refresh failed.",
-        )
+        # fwupd does not allow a refresh if the new metadata has an older
+        # signature timestamp than the existing metadata, and it's best not to
+        # make any assumption about the relative signature timestamps of the
+        # custom and default metadata. (Apparently, in the past, the default
+        # metadata had a newer signature timestamp, but as of 2026-01-26, the
+        # custom metadata has a newer signature timestamp. The timestamp that
+        # appears to matter is the one inside the gpg signature, not the one in
+        # the jcat wrapper.) The only way we found to bypass the downgrade check
+        # was to delete the existing metadata. Do that once at the beginning so
+        # this test can work and again at the end so everything that uses the
+        # default metadata can work. If this test gets interrupted before the
+        # `finally` can run, then qubes-fwupdmgr will be broken on your system
+        # until you clear the metadata manually; sorry.
+        clear_lvfs_metadata()
+        try:
+            self.q.refresh_metadata(
+                remote_name="lvfs",
+                metadata_url=CUSTOM_METADATA
+            )
+            self.assertEqual(
+                self.captured_output.getvalue().strip(),
+                "Successfully refreshed metadata manually",
+                msg="Metadata refresh failed.",
+            )
+        finally:
+            clear_lvfs_metadata()
 
     @unittest.skipUnless(check_whonix_updatevm(), "Requires sys-whonix")
     def test_refresh_metadata_whonix(self):
-        self.q.refresh_metadata(whonix=True, metadata_url=qfwupd.METADATA_URL)
+        self.q.refresh_metadata(whonix=True, remote_name="lvfs")
         self.assertEqual(
             self.captured_output.getvalue().strip(),
             "Successfully refreshed metadata manually",

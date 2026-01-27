@@ -43,6 +43,13 @@ FWUPD_DOM0_DIR = "/var/cache/fwupd/qubes"
 FWUPD_DOM0_METADATA_DIR = os.path.join(FWUPD_DOM0_DIR, "metadata")
 FWUPD_DOM0_UPDATES_DIR = os.path.join(FWUPD_DOM0_DIR, "updates")
 FWUPD_DOWNLOAD_PREFIX = "https://fwupd.org/downloads/"
+# Warning: As of 2026-01-27, the lvfs remote has switched to using
+# firmware.xml.zst, and `qubes-fwupdmgr refresh` honors that configuration by
+# default. If any code tried to use these URLs to refresh the main fwupd
+# metadata, it would be liable to run into errors due to skew between the
+# signature timestamps of the xz and zst files. Currently, these URLs appear to
+# be used only by the Heads code, which doesn't support the zst format, so they
+# can't be changed at the moment.
 METADATA_URL = "https://fwupd.org/downloads/firmware.xml.xz"
 METADATA_URL_JCAT = "https://fwupd.org/downloads/firmware.xml.xz.jcat"
 
